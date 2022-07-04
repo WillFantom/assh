@@ -59,7 +59,7 @@ type Host struct {
 	HashKnownHosts                   string                    `yaml:"hashknownhosts,omitempty,flow" json:"HashKnownHosts,omitempty"`
 	HostbasedAuthentication          string                    `yaml:"hostbasedauthentication,omitempty,flow" json:"HostbasedAuthentication,omitempty"`
 	HostbasedKeyTypes                string                    `yaml:"hostbasedkeytypes,omitempty,flow" json:"HostbasedKeyTypes,omitempty"`
-	HostKeyAlgorithms                string                    `yaml:"hostkeyalgorithms,omitempty,flow" json:"HostKeyAlgorithms,omitempty"`
+	HostKeyAlgorithms                composeyaml.Stringorslice `yaml:"hostkeyalgorithms,omitempty,flow" json:"HostKeyAlgorithms,omitempty"`
 	HostKeyAlias                     string                    `yaml:"hostkeyalias,omitempty,flow" json:"HostKeyAlias,omitempty"`
 	IdentitiesOnly                   string                    `yaml:"identitiesonly,omitempty,flow" json:"IdentitiesOnly,omitempty"`
 	IdentityAgent                    string                    `yaml:"identityagent,omitempty,flow" json:"IdentityAgent,omitempty"`
@@ -84,6 +84,7 @@ type Host struct {
 	Port                             string                    `yaml:"port,omitempty,flow" json:"Port,omitempty"`
 	PreferredAuthentications         string                    `yaml:"preferredauthentications,omitempty,flow" json:"PreferredAuthentications,omitempty"`
 	Protocol                         composeyaml.Stringorslice `yaml:"protocol,omitempty,flow" json:"Protocol,omitempty"`
+	ProxyJump                        string                    `yaml:"proxyjump,omitempty,flow" json:"ProxyJump,omitempty"`
 	ProxyUseFdpass                   string                    `yaml:"proxyusefdpass,omitempty,flow" json:"ProxyUseFdpass,omitempty"`
 	PubkeyAcceptedAlgorithms         string                    `yaml:"pubkeyacceptedalgorithms,omitempty,flow" json:"PubkeyAcceptedAlgorithms,omitempty"`
 	PubkeyAcceptedKeyTypes           string                    `yaml:"pubkeyacceptedkeytypes,omitempty,flow" json:"PubkeyAcceptedKeyTypes,omitempty"`
@@ -371,8 +372,8 @@ func (h *Host) Options() OptionsList {
 	if h.HostbasedKeyTypes != "" {
 		options = append(options, Option{Name: "HostbasedKeyTypes", Value: h.HostbasedKeyTypes})
 	}
-	if h.HostKeyAlgorithms != "" {
-		options = append(options, Option{Name: "HostKeyAlgorithms", Value: h.HostKeyAlgorithms})
+	if len(h.HostKeyAlgorithms) > 0 {
+		options = append(options, Option{Name: "HostKeyAlgorithms", Value: strings.Join(h.HostKeyAlgorithms, ",")})
 	}
 	if h.HostKeyAlias != "" {
 		options = append(options, Option{Name: "HostKeyAlias", Value: h.HostKeyAlias})
@@ -445,6 +446,9 @@ func (h *Host) Options() OptionsList {
 	}
 	if len(h.Protocol) > 0 {
 		options = append(options, Option{Name: "Protocol", Value: strings.Join(h.Protocol, ",")})
+	}
+	if h.ProxyJump != "" {
+		options = append(options, Option{Name: "ProxyJump", Value: h.ProxyJump})
 	}
 	if h.ProxyUseFdpass != "" {
 		options = append(options, Option{Name: "ProxyUseFdpass", Value: h.ProxyUseFdpass})
@@ -793,10 +797,10 @@ func (h *Host) ApplyDefaults(defaults *Host) {
 	}
 	h.HostbasedKeyTypes = utils.ExpandField(h.HostbasedKeyTypes)
 
-	if h.HostKeyAlgorithms == "" {
+	if len(h.HostKeyAlgorithms) == 0 {
 		h.HostKeyAlgorithms = defaults.HostKeyAlgorithms
 	}
-	h.HostKeyAlgorithms = utils.ExpandField(h.HostKeyAlgorithms)
+	h.HostKeyAlgorithms = utils.ExpandSliceField(h.HostKeyAlgorithms)
 
 	if h.HostKeyAlias == "" {
 		h.HostKeyAlias = defaults.HostKeyAlias
@@ -926,6 +930,11 @@ func (h *Host) ApplyDefaults(defaults *Host) {
 		h.ProxyCommand = defaults.ProxyCommand
 	}
 	h.ProxyCommand = utils.ExpandField(h.ProxyCommand)
+
+	if h.ProxyJump == "" {
+		h.ProxyJump = defaults.ProxyJump
+	}
+	h.ProxyJump = utils.ExpandField(h.ProxyJump)
 
 	if h.ProxyUseFdpass == "" {
 		h.ProxyUseFdpass = defaults.ProxyUseFdpass
@@ -1286,8 +1295,8 @@ func (h *Host) WriteSSHConfigTo(w io.Writer) error {
 		if h.HostbasedKeyTypes != "" {
 			_, _ = fmt.Fprintf(w, "  HostbasedKeyTypes %s\n", h.HostbasedKeyTypes)
 		}
-		if h.HostKeyAlgorithms != "" {
-			_, _ = fmt.Fprintf(w, "  HostKeyAlgorithms %s\n", h.HostKeyAlgorithms)
+		if len(h.HostKeyAlgorithms) > 0 {
+			_, _ = fmt.Fprintf(w, "  HostKeyAlgorithms %s\n", strings.Join(h.HostKeyAlgorithms, ","))
 		}
 		if h.HostKeyAlias != "" {
 			_, _ = fmt.Fprintf(w, "  HostKeyAlias %s\n", h.HostKeyAlias)
@@ -1360,6 +1369,9 @@ func (h *Host) WriteSSHConfigTo(w io.Writer) error {
 		}
 		if len(h.Protocol) > 0 {
 			_, _ = fmt.Fprintf(w, "  Protocol %s\n", strings.Join(h.Protocol, ","))
+		}
+		if h.ProxyJump != "" {
+			_, _ = fmt.Fprintf(w, "  ProxyJump %s\n", h.ProxyJump)
 		}
 		if h.ProxyUseFdpass != "" {
 			_, _ = fmt.Fprintf(w, "  ProxyUseFdpass %s\n", h.ProxyUseFdpass)
